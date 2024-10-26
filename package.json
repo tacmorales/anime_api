@@ -1,0 +1,27 @@
+{
+  "name": "anime_api",
+  "version": "1.0.0",
+  "description": "Servidor realizado solo con nodejs, para escribir, leer, editar y borrar listas de anime.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch --env-file=.env index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tacmorales/anime_api.git"
+  },
+  "keywords": [
+    "nodejs",
+    "api",
+    "anime",
+    "full-stack",
+    "trainee"
+  ],
+  "author": "Tac Morales",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tacmorales/anime_api/issues"
+  },
+  "homepage": "https://github.com/tacmorales/anime_api#readme"
+}
