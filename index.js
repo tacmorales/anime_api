@@ -1,20 +1,19 @@
-//Se debe considerar que el siguiente diseño de la API:
-//El pathname al que consulta SIEMPRE debe ser /api/anime
-//Para especificar las consultas (id y/o nombre), se reciben desde las query params, (también llamado query en la composición de la URL)
+//Diseño de la API:
+//El pathname al que se consulta es /api/anime/
+//Para especificar las consultas (Solicitar información, en este caso solo con id y/o nombre), estas se reciben desde query params, (también llamado query en la composición de la URL)
 //Para entender las partes de una URL, revisar https://web.dev/articles/url-parts?hl=es-419
-//Las opciones a actualizar se pasan desde el body.
+//Las opciones a actualizar se pasan desde el body como un objeto json.
 
 const http = require("node:http");
 const path = require("node:path");
 const { readFileSync, writeFileSync } = require("node:fs");
-const urlImport = require("node:url");
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 0;
 
 // Ubicación del archivo de persistencia.
-const dataAnimes = path.join(__dirname, "data", "anime.json");
+const absolutePathOfAnimeJson = path.join(__dirname, "data", "anime.json");
 
 // URI de la API
-const apiPath = "/api/anime/";
+const apiURI = "/api/anime/";
 
 // Mensajes de errores
 const messages = {
@@ -35,19 +34,23 @@ const messages = {
   },
 };
 
+  //====================================
+  //=======CREACIÓN DEL SERVIDOR========
+  //====================================
 const server = http.createServer((req, res) => {
   // Headers. Siempre es el mismo.
   res.setHeader('Content-Type','application/json')
 
   //Se crea un objeto URL que representa la ruta a la que se está accediendo (ver lectura sesión 7, página 10)
-  //globalThis. se puede omitir, ya que representa el objeto global que existe en todo entorno de ejecución de javascript, el cual tiene acceso a "librerías" o API's, como console, como Math, string, number, etc... No lo omito, porque cuando es un objeto con el que no se ha trabajado antes (desconocido), lo pongo para que quede claro de donde viene.
+  //globalThis. se puede omitir, ya que representa el objeto global que existe en todo entorno de ejecución de javascript, el cual tiene acceso a "librerías" o API's, como console, como Math, String, Number, etc... No lo omito, porque cuando es un objeto con el que no se ha trabajado antes (desconocido), lo pongo para que quede claro de donde viene. 
+  //Esto también se puede conseguir con const urlImport = require("node:url"); que a diferencia de URL retorna un objeto más sencillo. https://stackoverflow.com/questions/69913108/node-js-url-module-vs-javascript-url
   const urlParsed = new globalThis.URL(req.url, `http://${req.headers.host}`);
 
-  //Desde urlParsed.pathname se guarda la ruta relativa o pathname en la variable pathname
-  const pathName = urlParsed.pathname;
+  //Gracias a urlParsed.pathname se guarda la ruta relativa de la URL que solicitan. Esto se llama URI (ver partes de una URL)y se guarda en la variable requestedURI.
+  const requestedURI = urlParsed.pathname;
 
-  //En este caso la ruta relativa o pathname se desea que sea igual a /api/anime que esta guardado en la variable apiPath. Si esto no se cumple, se devuelve un 404.
-  if ( !(apiPath === pathName || apiPath === `${pathName}/`) ) {
+  //En este caso la ruta relativa o requestedURI se desea que sea igual a /api/anime que esta guardado en la variable apiURI. Si esto no se cumple, se devuelve un 404.
+  if ( !(apiURI === requestedURI || apiURI === `${requestedURI}/`) ) {
     res.statusCode = 404;
     res.write(JSON.stringify(messages.wrongUri));
     return res.end();
@@ -74,10 +77,9 @@ const server = http.createServer((req, res) => {
   //==================
   if (method === "GET") {
     //Se recupera el contenido del archivo anime.json
-    const dataInStringFormat = readFileSync(dataAnimes, "utf-8");
+    const dataInStringFormat = readFileSync(absolutePathOfAnimeJson, "utf-8");
 
-    //Si el cliente no entrega el id o el nombre, mostrar todo. Se ignoran el resto de posibles parámetros (año, genero, autor)
-    //Si el cliente ni siquiera manda nada en queryParams, igual entra gracias a preguntar ?. En ese caso animeConsulted es null en este caso
+    //Si el cliente no entrega ni el id ni el nombre, mostrar todo. Se ignoran el resto de posibles parámetros (año, genero, autor)
     if (!(animeConsulted?.id || animeConsulted?.nombre)) {
       res.write(dataInStringFormat);
       return res.end();
@@ -104,10 +106,11 @@ const server = http.createServer((req, res) => {
           animeFound = anime; //<- se guarda
           break; //<- se deja de buscar
         }
+        //Si nunca se entra al if, animeFound se mantendrá null
       }
     }
 
-    //Si pasan solo el id y el nombre se buscar por el id, se verifica que el nombre pasado coincida con el encontrado por el id, y si esto se cumple se devuelve.
+    //Si pasan el id y el nombre se buscar por el id y luego se verifica que el nombre que nos solicitan coincida con el encontrado por el id, y si esto se cumple se devuelve.
     if (animeConsulted.nombre && animeConsulted.id){
       const possibleAnime = dataInJsonFormat[animeConsulted.id];
       if (possibleAnime?.nombre === animeConsulted.nombre){
@@ -148,7 +151,7 @@ const server = http.createServer((req, res) => {
       }
 
       //Si existe un anime con el mismo nombre, rechazamos la entrada, entonces para buscar este posible duplicado se lee el archivo anime.json y se pasa a un objeto json.
-      const dataInStringFormat = readFileSync(dataAnimes, "utf-8");
+      const dataInStringFormat = readFileSync(absolutePathOfAnimeJson, "utf-8");
       const dataInJsonFormat = JSON.parse(dataInStringFormat);
       //Queremos recorrer cada objeto del archivo (el id no nos interesa):
       const animes = Object.values(dataInJsonFormat);
@@ -179,7 +182,7 @@ const server = http.createServer((req, res) => {
       //Luego se agrega el nuevo objeto a dataInJsonFormat
       Object.assign(dataInJsonFormat, newAnime);
       //Se escribe el objeto ya modificado
-      writeFileSync(dataAnimes, JSON.stringify(dataInJsonFormat),"utf-8");
+      writeFileSync(absolutePathOfAnimeJson, JSON.stringify(dataInJsonFormat),"utf-8");
       res.writeHead(201);
       //se devuelve newAnime, en vez de animeSended, ya que newAnime posee el id!
       return res.end(JSON.stringify({message: "Registro de animé exitoso", data: newAnime}));
@@ -189,11 +192,14 @@ const server = http.createServer((req, res) => {
   //=======PUT========
   //==================
   } else if (method === "PUT") {
-    //¿El id y el nombre son valores únicos? si
-    //Si la respuesta es si ¿Permitir editar solo indicando el nombre? no
-    //Asumo que el id es constante (no se puede cambiar). ¿Se puede cambiar el nombre? (asumo que si) si. entonces validar que no se repita
+    //DISEÑO: Se edita consultando (query params) con el id (y solo con el id). Los datos a actualizar se entregan desde el body
+    //El id es constante, no puede cambiar.
+    //El id y el nombre son valores únicos
+    //Se puede cambiar el nombre. 
+    //Entonces se debe validar que el nombre no coincida con otro anime si se intenta cambiar este atributo.
 
-    //Cuando se crea o se actualiza algo, el cliente envía la nueva información a traves del body. Para recuperar la información del body se debe utilizar la función req.on con el siguiente patrón: 
+    //Cuando se crea o se actualiza algo, el cliente envía la nueva información a traves del body.
+    //Para recuperar la información del body se debe utilizar la función req.on con el siguiente patrón: 
     let animeSended = "";
     req.on("data", (chunk) => {
       animeSended += chunk.toString();
@@ -205,7 +211,7 @@ const server = http.createServer((req, res) => {
       //Se recupera el id del anime que están solicitando actualizar (esta no es nueva data, no viene del body, viene del query)
       const animeIdToUpdate = animeConsulted.id;
 
-      //Si el cliente no envía el id del anime que desea actualizar retornar.
+      //Si el cliente no envía el id del anime que desea actualizar, retornar error 422.
       if (!animeIdToUpdate){
         req.statusCode = 422;
         res.write(JSON.stringify(messages.missingArguments));
@@ -218,13 +224,14 @@ const server = http.createServer((req, res) => {
         res.write(JSON.stringify(messages.missingArguments));
         return res.end();
       }
+      //Los dos anteriores se podrían unir en un solo if pero se mantiene separado por claridad y razones educativas.
 
       //El anime que se quiere actualizar debe existir, entonces para buscar anime se lee el archivo anime.json y se pasa a un objeto json.
-      const dataInStringFormat = readFileSync(dataAnimes, "utf-8");
+      const dataInStringFormat = readFileSync(absolutePathOfAnimeJson, "utf-8");
       const dataInJsonFormat = JSON.parse(dataInStringFormat);
       //Recuperamos el anime solicitado a actualizar
       let animeToUpdate = dataInJsonFormat[animeIdToUpdate];
-      //Si no existe el id del anime que se quiere solicitar retornar.
+      //Si no existe el id del anime que se quiere solicitar retornar error 404.
       if (!animeToUpdate){
         res.statusCode = 404;
         res.write(JSON.stringify(messages.wrongUri));
@@ -260,7 +267,7 @@ const server = http.createServer((req, res) => {
       //Se sobre escribe este anime actualizado en el objeto dataInJsonFormat
       dataInJsonFormat[animeIdToUpdate] = animeUpdated;
       //Se escriben los animes en el archivo.
-      writeFileSync(dataAnimes, JSON.stringify(dataInJsonFormat), "utf-8");
+      writeFileSync(absolutePathOfAnimeJson, JSON.stringify(dataInJsonFormat), "utf-8");
       //Se crea una replica del objeto ya actualizado, pero con su id
       const animeUpdatedWithId = {};
       animeUpdatedWithId[animeIdToUpdate] = animeUpdated;
@@ -283,7 +290,7 @@ const server = http.createServer((req, res) => {
     }
 
     //El anime que se quiere actualizar debe existir, entonces para buscar anime se lee el archivo anime.json y se pasa a un objeto json.
-    const dataInStringFormat = readFileSync(dataAnimes, "utf-8");
+    const dataInStringFormat = readFileSync(absolutePathOfAnimeJson, "utf-8");
     const dataInJsonFormat = JSON.parse(dataInStringFormat);
 
     //Se guarda en esta variable el anime que se desea borrar.
@@ -299,13 +306,15 @@ const server = http.createServer((req, res) => {
     //Se elimina el anime en el objeto dataInJsonFormat
     delete dataInJsonFormat[animeIdToDelete];
     //Se escribe en el archivo
-    writeFileSync(dataAnimes, JSON.stringify(dataInJsonFormat), "utf-8");
+    writeFileSync(absolutePathOfAnimeJson, JSON.stringify(dataInJsonFormat), "utf-8");
     //Se crea una replica del objeto ya eliminado
     const animeDeletedWithId = {};
     animeDeletedWithId[animeIdToDelete] = animeFound;
     //Se envía la info al cliente.
     return res.end(JSON.stringify({ message: "Anime eliminado con éxito", data: animeDeletedWithId}));
   }
+
+  //Este último else, es el "fallback" en el caso de que soliciten una petición con un metodo distinto de los definidos (GET, POST, PUT, DELETE).
   else{
     req.statusCode = 405;
     res.write(JSON.stringify(messages.wrongMethod));
@@ -313,11 +322,10 @@ const server = http.createServer((req, res) => {
   }
 })
 
-
 //Se utiliza el puerto fijado en el archivo .env
 server.listen(PORT, () => {
   //Aquí se recupera el port de manera dinámica, con el método address que devuelve un objeto que tiene una propiedad PORT
   console.log(`Servidor corriendo en: ${server.address().port}`);
 });
 
-module.exports = { server, PORT }
+module.exports = { server }

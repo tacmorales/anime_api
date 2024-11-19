@@ -10,7 +10,7 @@ describe("Pruebas al servidor Node", () => {
         chai.expect(server).to.be.a('object');
     })
 
-    it("Definición y validación de puerto", () => {
-        chai.expect(server.address().port).to.be.equal(PORT);
+    it(`Aplicación corriendo por el puerto definido: ${PORT}`, () => {
+        chai.expect(Number(server.address().port)).to.be.equal(Number(PORT));
     })
 })

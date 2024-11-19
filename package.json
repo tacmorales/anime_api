@@ -4,8 +4,9 @@
   "description": "Servidor realizado solo con nodejs, para escribir, leer, editar y borrar listas de anime.",
   "main": "index.js",
   "scripts": {
+    "start": "node --env-file=.env index.js",
     "dev": "node --watch --env-file=.env index.js",
-    "test": "npx node --env-file=.env ./node_modules/mocha/bin/mocha index.test.js"
+    "test": "node --env-file=.env ./node_modules/mocha/bin/mocha ./index.test.js"
   },
   "repository": {
     "type": "git",
