@@ -1,15 +1,16 @@
 const chai = require("chai");
 const chaiHttp = require("chai-http");
-const { servidor, port } = require("./index.js");
+const { server } = require("./index.js");
+const PORT = process.env.PORT;
 
 chai.use(chaiHttp)
 
 describe("Pruebas al servidor Node", () => {
     it("Creación del servidor", () => {
-        chai.expect(servidor).to.be.a('object');
+        chai.expect(server).to.be.a('object');
     })
 
     it("Definición y validación de puerto", () => {
-        chai.expect(port).to.be.a("number");
+        chai.expect(server.address().port).to.be.equal(PORT);
     })
 })

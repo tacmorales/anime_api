@@ -320,4 +320,4 @@ server.listen(PORT, () => {
   console.log(`Servidor corriendo en: ${server.address().port}`);
 });
 
-export { server }
+module.exports = { server, PORT }
