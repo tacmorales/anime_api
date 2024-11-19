@@ -7,6 +7,7 @@
 const http = require("node:http");
 const path = require("node:path");
 const { readFileSync, writeFileSync } = require("node:fs");
+const urlImport = require("node:url");
 const PORT = process.env.PORT;
 
 // Ubicación del archivo de persistencia.
@@ -27,7 +28,7 @@ const messages = {
     message: `El nombre del anime que se desea registrar ya existe.`,
   },
   missingArguments: {
-    message: `Falta información que entregar. Puede faltar el Id (DELETE o PUT) o alguno(s) de los parametros del body para crear (POST).`,
+    message: `Falta información que entregar. Puede faltar el Id (DELETE o PUT) o alguno(s) de los parámetros del body para crear (POST).`,
   },
   wrongMethod: {
     message: "Método no soportado. Este servidor solo soporta GET, PUT, POST y DELETE",
@@ -39,10 +40,11 @@ const server = http.createServer((req, res) => {
   res.setHeader('Content-Type','application/json')
 
   //Se crea un objeto URL que representa la ruta a la que se está accediendo (ver lectura sesión 7, página 10)
+  //globalThis. se puede omitir, ya que representa el objeto global que existe en todo entorno de ejecución de javascript, el cual tiene acceso a "librerías" o API's, como console, como Math, string, number, etc... No lo omito, porque cuando es un objeto con el que no se ha trabajado antes (desconocido), lo pongo para que quede claro de donde viene.
   const urlParsed = new globalThis.URL(req.url, `http://${req.headers.host}`);
 
-  //Desde urlParsed.pathname se guarda la ruta relativa o pathname en la constante pathname
-  let pathName = urlParsed.pathname;
+  //Desde urlParsed.pathname se guarda la ruta relativa o pathname en la variable pathname
+  const pathName = urlParsed.pathname;
 
   //En este caso la ruta relativa o pathname se desea que sea igual a /api/anime que esta guardado en la variable apiPath. Si esto no se cumple, se devuelve un 404.
   if ( !(apiPath === pathName || apiPath === `${pathName}/`) ) {
@@ -74,7 +76,7 @@ const server = http.createServer((req, res) => {
     //Se recupera el contenido del archivo anime.json
     const dataInStringFormat = readFileSync(dataAnimes, "utf-8");
 
-    //Si el cliente no entrega el id o el nombre, mostrar todo. Se ignoran el resto de posibles parametros (año, genero, autor)
+    //Si el cliente no entrega el id o el nombre, mostrar todo. Se ignoran el resto de posibles parámetros (año, genero, autor)
     //Si el cliente ni siquiera manda nada en queryParams, igual entra gracias a preguntar ?. En ese caso animeConsulted es null en este caso
     if (!(animeConsulted?.id || animeConsulted?.nombre)) {
       res.write(dataInStringFormat);
@@ -89,7 +91,7 @@ const server = http.createServer((req, res) => {
 
     //Si pasan solo el id se busca por id y se devuelve el animé encontrado.
     if (animeConsulted.id && !animeConsulted.nombre){
-      animeFound = dataInJsonFormat[animeConsulted.id];
+      animeFound = dataInJsonFormat[animeConsulted.id]; //<- si esto falla, animeFound será undefined
     }
 
     //Si pasan solo el nombre se busca por el nombre y se devuelve el animé encontrado.
@@ -99,8 +101,8 @@ const server = http.createServer((req, res) => {
       for(anime of animes){
         //Si el nombre coincide con el solicitado se guarda y se deja de buscar
         if (anime.nombre === animeConsulted.nombre){
-          animeFound = anime;
-          break
+          animeFound = anime; //<- se guarda
+          break; //<- se deja de buscar
         }
       }
     }
@@ -120,7 +122,7 @@ const server = http.createServer((req, res) => {
       return res.end();
     }
 
-    //Si no entro al if anterior, significa que se encontró el anime! se entrega al cliente el anime solicitado
+    //Si no entro al if anterior, significa que se encontró el animé! se entrega al cliente el anime solicitado
     res.statusCode = 200;
     res.write(JSON.stringify(animeFound));
     return res.end();
@@ -176,7 +178,7 @@ const server = http.createServer((req, res) => {
       newAnime[animeId] = animeSended;
       //Luego se agrega el nuevo objeto a dataInJsonFormat
       Object.assign(dataInJsonFormat, newAnime);
-      //Se escribe el objeto ya modificado (Object.assign modifica el objeto dataInJsonFormat)
+      //Se escribe el objeto ya modificado
       writeFileSync(dataAnimes, JSON.stringify(dataInJsonFormat),"utf-8");
       res.writeHead(201);
       //se devuelve newAnime, en vez de animeSended, ya que newAnime posee el id!
@@ -229,23 +231,27 @@ const server = http.createServer((req, res) => {
         return res.end();
       }
 
-      //Se verifica que en la actualización del objeto el nombre () no se repita con un anime ya registrado
-      const animes = Object.values(dataInJsonFormat);
-      //Se inicializa la variable booleana que indicará si está duplicado el nombre
-      let animeAlreadyExist = false;
-      //Se recorre los animes del archivo
-      for (anime of animes){
-        //Si el nombre del anime en el archivo es igual al nombre del anime enviado por el cliente, cambiar la variable animeAlreadyExist a true
-        if (String(anime.nombre).toLowerCase() === String(animeSended.nombre).toLowerCase()){
-          animeAlreadyExist = true;
-          break;
+      //Si se manda un nombre a actualizar se debe...
+      if(animeSended.nombre){
+        //...verificar que el nombre no se repita con un anime ya registrado
+        // se extraen los objetos animes en un arreglo con Object.values(data)
+        const animes = Object.values(dataInJsonFormat);
+        //Se inicializa la variable booleana que indicará si está duplicado el nombre
+        let animeAlreadyExist = false;
+        //Se recorre los animes del archivo
+        for (anime of animes){
+          //Si el nombre del anime en el archivo es igual al nombre del anime enviado por el cliente, cambiar la variable animeAlreadyExist a true
+          if (String(anime.nombre).toLowerCase() === String(animeSended.nombre).toLowerCase()){
+            animeAlreadyExist = true;
+            break;
+          }
         }
-      }
-      //Si el animé ya existe bajo ese nombre retornar mostrando el error al cliente.
-      if (animeAlreadyExist){
-        res.statusCode = 409;
-        res.write(JSON.stringify(messages.animeRepeated));
-        return res.end();
+        //Si el animé ya existe bajo ese nombre retornar mostrando el error al cliente.
+        if (animeAlreadyExist){
+          res.statusCode = 409;
+          res.write(JSON.stringify(messages.animeRepeated));
+          return res.end();
+        }
       }
 
       //Llegado a este punto, la actualización del anime es valida, por lo que se actualiza en el objeto dataInJsonFormat y se escribe en el archivo
@@ -253,12 +259,12 @@ const server = http.createServer((req, res) => {
       let animeUpdated = { ...animeToUpdate, ...animeSended };
       //Se sobre escribe este anime actualizado en el objeto dataInJsonFormat
       dataInJsonFormat[animeIdToUpdate] = animeUpdated;
-      //Se escriben los animés en el archivo.
+      //Se escriben los animes en el archivo.
       writeFileSync(dataAnimes, JSON.stringify(dataInJsonFormat), "utf-8");
       //Se crea una replica del objeto ya actualizado, pero con su id
       const animeUpdatedWithId = {};
       animeUpdatedWithId[animeIdToUpdate] = animeUpdated;
-      //Se envia mensaje de confirmacion al cliente con la informacion del animé actualizado.
+      //Se envía mensaje de confirmación al cliente con la información del animé actualizado.
       return res.end(JSON.stringify({ message: "Animé modificado con éxito", data: animeUpdatedWithId}));
   });
 
@@ -283,7 +289,7 @@ const server = http.createServer((req, res) => {
     //Se guarda en esta variable el anime que se desea borrar.
     const animeFound = dataInJsonFormat[animeIdToDelete];
 
-    //Si no se encontró el anime, la variable animeFound seguirá undefined, por lo que se devuelve 404
+    //Si no se encontró el anime, la variable animeFound será undefined, en ese caso se devuelve 404
     if (!animeFound){
       res.statusCode = 404;
       res.write(JSON.stringify(messages.animeNotFound));
@@ -305,10 +311,13 @@ const server = http.createServer((req, res) => {
     res.write(JSON.stringify(messages.wrongMethod));
     return res.end();
   }
-});
+})
+
 
 //Se utiliza el puerto fijado en el archivo .env
 server.listen(PORT, () => {
   //Aquí se recupera el port de manera dinámica, con el método address que devuelve un objeto que tiene una propiedad PORT
   console.log(`Servidor corriendo en: ${server.address().port}`);
 });
+
+export { server }
