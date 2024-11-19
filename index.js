@@ -324,7 +324,7 @@ const server = http.createServer((req, res) => {
 
 //Se utiliza el puerto fijado en el archivo .env
 server.listen(PORT, () => {
-  //Aquí se recupera el port de manera dinámica, con el método address que devuelve un objeto que tiene una propiedad PORT
+  //Aquí se recupera el port en el que está corriendo el servidor (server), con el método address que devuelve un objeto que tiene la propiedad PORT.
   console.log(`Servidor corriendo en: ${server.address().port}`);
 });
 
